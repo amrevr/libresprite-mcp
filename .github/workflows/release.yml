@@ -1,0 +1,39 @@
+# On a v* tag: creates the GitHub release (if missing) and attaches the complete
+# source of the exact LibreSprite commit the image is built from, submodules
+# included. The image ships the GPL-2.0 LibreSprite binary; this is its source.
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  libresprite-source:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Fetch the pinned LibreSprite commit with submodules
+        run: |
+          commit=$(sed -n 's/^ARG LIBRESPRITE_COMMIT=//p' Dockerfile)
+          [[ "$commit" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::no full LIBRESPRITE_COMMIT in Dockerfile"; exit 1; }
+          echo "COMMIT=$commit" >> "$GITHUB_ENV"
+          src="libresprite-$commit"
+          git init -q "$src"
+          git -C "$src" fetch -q --depth 1 https://github.com/LibreSprite/LibreSprite "$commit"
+          git -C "$src" checkout -q FETCH_HEAD
+          git -C "$src" submodule update -q --init --recursive --depth 1
+          tar --exclude=.git --sort=name --owner=0 --group=0 --numeric-owner -czf "$src-source.tar.gz" "$src"
+          sha256sum "$src-source.tar.gz" > "$src-source.tar.gz.sha256"
+
+      - name: Attach to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --verify-tag --title "$TAG" --notes \
+            "Image: \`ghcr.io/amrevr/libresprite-mcp:${TAG#v}\`. It contains LibreSprite (GPL-2.0-only) built from commit \`$COMMIT\`; the complete corresponding source is attached as \`libresprite-$COMMIT-source.tar.gz\`."
+          gh release upload "$TAG" --clobber "libresprite-$COMMIT-source.tar.gz" "libresprite-$COMMIT-source.tar.gz.sha256"
