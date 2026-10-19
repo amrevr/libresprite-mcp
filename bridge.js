@@ -1,7 +1,7 @@
 // stdio <-> Streamable HTTP bridge for LibreSprite's built-in MCP server.
 // Runs inside the container: starts LibreSprite headless on loopback, relays
 // newline-delimited JSON-RPC from stdin to http://127.0.0.1:<port>/mcp and the
-// replies back to stdout, and adds helper tools (sprite_new, pixels_set, export_sheet).
+// replies back to stdout, and adds helper tools (sprite_new, pixels_set, frame_duration, export_sheet).
 // Bun only, no dependencies. Everything not JSON-RPC goes to stderr.
 import { deflateSync } from "node:zlib";
 import { mkdirSync, existsSync, readFileSync } from "node:fs";
@@ -212,6 +212,35 @@ const HELPERS = {
       };
       await Promise.all(Array.from({ length: CONCURRENCY }, worker));
       return text(`set ${pixels.length} pixels`);
+    },
+  },
+  frame_duration: {
+    description: "Sets how long frames are shown, in milliseconds (LibreSprite's FrameProperties needs a dialog). The bridge saves the sprite to /tmp, rewrites the durations in that .ase and reopens it, so, as after sprite_new, the document lives in /tmp (sprite_save_as it under /work) and the active frame is 0 again. GIF saves and export_sheet's JSON use these durations.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        ms: { type: "integer", description: "duration in milliseconds (1-65535)" },
+        frame: { type: "integer", description: "0-based frame (default: every frame)" },
+      },
+      required: ["ms"],
+    },
+    async run({ ms, frame }) {
+      if (!Number.isInteger(ms) || ms < 1 || ms > 65535) throw new Error("ms must be an integer from 1 to 65535");
+      const tmp = join(SEED_DIR, `durations-${++internalId}.ase`);
+      await callTool("sprite_save_as", { path: tmp });
+      // .ase: frame count is a WORD at 6, frames start at 128, each frame header is
+      // DWORD size, WORD magic, WORD chunks, WORD duration (little-endian).
+      const b = readFileSync(tmp), dv = new DataView(b.buffer, b.byteOffset, b.length);
+      const n = dv.getUint16(6, true);
+      if (frame !== undefined && (!Number.isInteger(frame) || frame < 0 || frame >= n))
+        throw new Error(`frame must be an integer from 0 to ${n - 1}`);
+      for (let i = 0, off = 128; i < n; off += dv.getUint32(off, true), i++) {
+        if (dv.getUint16(off + 4, true) !== 0xf1fa) throw new Error("unexpected .ase layout; durations unchanged");
+        if (frame === undefined || frame === i) dv.setUint16(off + 8, ms, true);
+      }
+      await Bun.write(tmp, b);
+      await start(tmp);
+      return text(`set ${frame === undefined ? "every frame" : "frame " + frame} to ${ms} ms`);
     },
   },
   export_sheet: {

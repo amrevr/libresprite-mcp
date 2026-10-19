@@ -20,6 +20,7 @@ under `/work`; the scratch sprite from `sprite_new` lives in `/tmp` and is lost.
 | Draw | `pixel_set {x, y, color, frame?, layer?}`, read back with `pixel_get` |
 | Draw many | `pixels_set {pixels: [{x, y, color}]}` or `{rows: ["..ab"], palette: {a: "#.."}, x?, y?}`, up to 10000 per call, all-or-nothing bounds check |
 | Palette | `palette_get`, `palette_set {index, color}` (cannot grow the palette) |
+| Frame timing | `frame_duration {ms, frame?}` (all frames by default); reloads the sprite, so the active frame is 0 afterwards |
 | Frames, layers, flips, resize... | `command_info {name}` first, then `run_command {name, params}` |
 | Save | `sprite_save_as {path}` (.ase keeps frames and layers, .png flattens one frame) |
 | Sprite sheet | `export_sheet {path?, inline?}` writes `<name>.ase`, `<name>.png` (one row) and `<name>.json` |
