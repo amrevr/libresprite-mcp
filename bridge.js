@@ -4,8 +4,8 @@
 // replies back to stdout, and adds helper tools (sprite_new, pixels_set, frame_duration, export_sheet).
 // Bun only, no dependencies. Everything not JSON-RPC goes to stderr.
 import { deflateSync } from "node:zlib";
-import { mkdirSync, existsSync, readFileSync } from "node:fs";
-import { dirname, isAbsolute, join } from "node:path";
+import { mkdirSync, existsSync, readFileSync, readdirSync, statSync, chownSync } from "node:fs";
+import { basename, dirname, extname, isAbsolute, join, normalize } from "node:path";
 
 const BIN = process.env.LIBRESPRITE_BIN || "/opt/libresprite/libresprite";
 const SCRIPT = join(dirname(BIN), "data/scripts/mcp-server.js");
@@ -138,7 +138,37 @@ export function blankPng(w, h, mode) {
   return Buffer.concat(parts);
 }
 
-const resolve = (p) => (isAbsolute(p) ? p : join(WORK, p));
+const resolve = (p) => normalize(isAbsolute(p) ? p : join(WORK, p));
+
+// The container runs as root, so on Linux hosts what it writes into /work would be owned by root.
+// Hand each written path (file or created directory) under /work to the owner of /work itself.
+function own(...paths) {
+  let o;
+  try { o = statSync(WORK); } catch { return; }
+  for (const p of paths) {
+    if (typeof p !== "string" || !p.startsWith(WORK + "/")) continue;
+    try {
+      const s = statSync(p);
+      if (s.uid !== o.uid || s.gid !== o.gid) chownSync(p, o.uid, o.gid);
+    } catch (e) { log("chown", p, e.message); } // not root (e.g. --user): nothing to fix
+  }
+}
+
+// A multi-frame sprite saved as x.png is written as x1.png, x2.png, ...
+function written(path) {
+  if (existsSync(path)) return [path];
+  const ext = extname(path), stem = basename(path, ext), dir = dirname(path);
+  const numbered = new RegExp("^" + stem.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\d+" + ext.replace(".", "\\.") + "$");
+  try { return readdirSync(dir).filter((f) => numbered.test(f)).map((f) => join(dir, f)); } catch { return []; }
+}
+
+// mkdir -p that also gives the directories it creates to /work's owner.
+function mkdirOwned(dir) {
+  const first = mkdirSync(dir, { recursive: true });
+  const made = [];
+  if (first) for (let d = dir; d.length >= first.length; d = dirname(d)) made.push(d);
+  own(...made.reverse());
+}
 const text = (t) => ({ content: [{ type: "text", text: t }] });
 
 const HELPERS = {
@@ -255,7 +285,7 @@ const HELPERS = {
     async run({ path = "sprite.ase", inline = false }) {
       const ase = resolve(path);
       if (!/\.(ase|aseprite)$/i.test(ase)) throw new Error("path must end in .ase or .aseprite");
-      mkdirSync(dirname(ase), { recursive: true });
+      mkdirOwned(dirname(ase));
       await callTool("sprite_save_as", { path: ase });
       const base = ase.replace(/\.[^./]+$/, "");
       const png = base + ".png", json = base + ".json";
@@ -263,6 +293,7 @@ const HELPERS = {
       const r = Bun.spawnSync([BIN, "--batch", ase, "--sheet", png, "--data", json], { stdout: "pipe", stderr: "pipe" });
       if (r.exitCode !== 0 || !existsSync(png) || !existsSync(json))
         throw new Error(`sheet export failed (exit ${r.exitCode}): ${r.stdout}${r.stderr}`.trim());
+      own(ase, png, json);
       const out = text(JSON.stringify({ ase, png, json }, null, 2));
       if (inline) out.content.push({ type: "image", mimeType: "image/png", data: readFileSync(png).toString("base64") });
       return out;
@@ -288,7 +319,15 @@ async function handle(msg) {
       }
       return;
     }
-    for (const reply of await post(msg)) {
+    const replies = await post(msg);
+    // Files LibreSprite itself wrote: sprite_save_as {path}, run_command {params: {filename}} (e.g. SaveFileCopyAs).
+    // Fixed before replying, so the client never sees them root-owned.
+    if (msg.method === "tools/call") {
+      const a = msg.params?.arguments || {};
+      const target = msg.params.name === "sprite_save_as" ? a.path : msg.params.name === "run_command" ? a.params?.filename : null;
+      if (typeof target === "string" && target) own(...written(resolve(target)));
+    }
+    for (const reply of replies) {
       if (reply.id === msg.id && reply.result) {
         if (msg.method === "initialize") protocol = reply.result.protocolVersion;
         if (msg.method === "tools/list") reply.result.tools = [...reply.result.tools, ...helperList];

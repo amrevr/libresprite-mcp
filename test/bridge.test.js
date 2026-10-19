@@ -1,7 +1,7 @@
 // Runs inside the image: bun test test/  (see test/run.sh)
 import { test, expect, afterAll } from "bun:test";
 import { inflateSync } from "node:zlib";
-import { readFileSync, readdirSync, mkdtempSync } from "node:fs";
+import { readFileSync, readdirSync, mkdtempSync, chownSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 const BRIDGE = join(import.meta.dir, "..", "bridge.js");
@@ -178,6 +178,23 @@ test("a command that opens a dialog times out instead of hanging the bridge", as
   expect(libresprites()).toEqual([]);
   await call("sprite_new", { w: 4, h: 4 }); // recovers
   expect(JSON.parse((await call("sprite_info"))[0].text).width).toBe(4);
+  proc.stdin.end();
+  expect(await proc.exited).toBe(0);
+}, 60000);
+
+test.skipIf(process.getuid() !== 0)("files written into /work get the owner of /work, not root", async () => {
+  const work = mkdtempSync("/tmp/lsmcp-own-");
+  chownSync(work, 4321, 4322); // stands in for the host user who owns the mounted project
+  const { proc, call } = startBridge({ WORK_DIR: work });
+  await call("sprite_new", { w: 4, h: 4 });
+  await call("sprite_save_as", { path: work + "/flat.png" });
+  await call("export_sheet", { path: "new/dir/s.ase" });
+  await call("run_command", { name: "NewFrame" });
+  await call("sprite_save_as", { path: work + "/anim.png" }); // two frames: anim1.png, anim2.png
+  for (const p of ["anim1.png", "anim2.png", "flat.png", "new", "new/dir", "new/dir/s.ase", "new/dir/s.png", "new/dir/s.json"]) {
+    const s = statSync(join(work, p));
+    expect([p, s.uid, s.gid]).toEqual([p, 4321, 4322]);
+  }
   proc.stdin.end();
   expect(await proc.exited).toBe(0);
 }, 60000);
