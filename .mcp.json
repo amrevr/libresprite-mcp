@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "libresprite": {
+      "command": "docker",
+      "args": ["run", "--rm", "-i", "--network", "none", "-v", "${CLAUDE_PROJECT_DIR}:/work", "libresprite-mcp"]
+    }
+  }
+}
