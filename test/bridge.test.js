@@ -89,9 +89,10 @@ test("round trip: new sprite, pixels, frames, sprite sheet", async () => {
   expect(init.result.serverInfo.name).toBe("libresprite-mcp");
 
   const names = (await rpc("tools/list")).result.tools.map((t) => t.name);
-  expect(names.length).toBe(14);
+  expect(names.length).toBe(15);
   expect(names).toContain("sprite_new");
   expect(names).toContain("pixels_set");
+  expect(names).toContain("frame_duration");
   expect(names).toContain("export_sheet");
 
   await call("sprite_new", { w: 16, h: 16 });
@@ -121,6 +122,11 @@ test("round trip: new sprite, pixels, frames, sprite sheet", async () => {
   ]) expect((await rpc("tools/call", { name: "pixels_set", arguments: args })).result.isError).toBe(true);
   expect(await px(0, 0)).toBe("#00000000");
 
+  await call("frame_duration", { ms: 250 });
+  await call("frame_duration", { ms: 40, frame: 1 });
+  expect((await rpc("tools/call", { name: "frame_duration", arguments: { ms: 40, frame: 3 } })).result.isError).toBe(true);
+  expect((await call("pixel_get", { x: 5, y: 5, frame: 1 }))[0].text).toBe("#00ff00ff"); // pixels survive the reload
+
   const content = await call("export_sheet", { path: "anim/hero.ase", inline: true });
   const paths = JSON.parse(content[0].text);
   expect(paths).toEqual({ ase: WORK + "/anim/hero.ase", png: WORK + "/anim/hero.png", json: WORK + "/anim/hero.json" });
@@ -133,7 +139,7 @@ test("round trip: new sprite, pixels, frames, sprite sheet", async () => {
   expect([sheet.px(5, 5), sheet.px(21, 5), sheet.px(37, 5)]).toEqual([T, "#00ff00ff", T]);
   expect([sheet.px(9, 9), sheet.px(25, 9), sheet.px(41, 9)]).toEqual([T, T, "#0000ffff"]);
   expect(Buffer.from(content[1].data, "base64").equals(readFileSync(paths.png))).toBe(true);
-  expect(Object.keys(JSON.parse(readFileSync(paths.json, "utf8")).frames).length).toBe(3);
+  expect(Object.values(JSON.parse(readFileSync(paths.json, "utf8")).frames).map((f) => f.duration)).toEqual([250, 40, 250]);
 
   // the other color modes open too
   for (const mode of ["grayscale", "indexed"]) {
