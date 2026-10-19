@@ -87,7 +87,7 @@ const WK = { x: 150, y: 114, w: 160, h: 40 };
 
 function scene() {
   const c = canvas();
-  text(c, text(c, 4, 3, "libresprite-mcp", LS) + 4, 3, "one tool call, end to end", DIM);
+  text(c, text(c, 4, 3, "libresprite-plugin", LS) + 4, 3, "one tool call, end to end", DIM);
 
   // Claude Code, with a little terminal
   box(c, CL.x, CL.y, CL.w, CL.h, CLAUDE);
