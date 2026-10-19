@@ -9,7 +9,7 @@ import { renameSync, rmSync, readdirSync } from "node:fs";
 const W = 320, H = 160;
 const argv = process.argv.slice(2);
 const server = argv.length ? argv
-  : ["docker", "run", "--rm", "-i", "--network", "none", "-v", process.cwd() + ":/work", "ghcr.io/amrevr/libresprite-mcp:0.1.0"];
+  : ["docker", "run", "--rm", "-i", "--network", "none", "-v", process.cwd() + ":/work", "ghcr.io/amrevr/libresprite-plugin:0.1.0"];
 
 // ---------- palette (index 0 stays transparent; 1 is the background) ----------
 
