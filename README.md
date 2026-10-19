@@ -48,7 +48,7 @@ of the same version, which Docker pulls on first use.
 `claude plugin marketplace remove libresprite-mcp`, and to free the disk space
 `docker image rm ghcr.io/amrevr/libresprite-mcp:0.1.0`.
 
-### Advanced: build the image yourself
+### Build the image yourself
 
 ```sh
 git clone git@github.com:amrevr/libresprite-mcp.git   # or https://github.com/amrevr/libresprite-mcp.git
@@ -147,5 +147,4 @@ CI then publishes the `0.1.0` and `0.1` image tags and the release workflow atta
   server, `data/scripts/mcp-server.js`.
 - The skill's pixel-art concepts (palette discipline, frame and tag conventions, small-sprite
   workflow, critique passes, export steps) come from
-  [willibrandon/pixel-plugin](https://github.com/willibrandon/pixel-plugin) (MIT). No code is
-  copied; the skill is rewritten for this tool set.
+  [willibrandon/pixel-plugin](https://github.com/willibrandon/pixel-plugin) (MIT) which is a similar plugin for Aseprite, the non-FOSS version of LibreSprite.
