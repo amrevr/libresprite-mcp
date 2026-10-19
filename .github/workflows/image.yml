@@ -37,6 +37,14 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      - name: Check versions agree
+        run: |
+          v=$(jq -r .version .claude-plugin/plugin.json)
+          grep -qF "${IMAGE}:${v}}" .mcp.json || { echo "::error::.mcp.json does not use ${IMAGE}:${v}"; exit 1; }
+          if [[ "$GITHUB_REF" == refs/tags/v* && "${GITHUB_REF#refs/tags/v}" != "$v" ]]; then
+            echo "::error::tag ${GITHUB_REF#refs/tags/} does not match plugin.json version $v"; exit 1
+          fi
+
       - uses: docker/setup-buildx-action@v3
 
       - id: meta
