@@ -1,7 +1,7 @@
 // stdio <-> Streamable HTTP bridge for LibreSprite's built-in MCP server.
 // Runs inside the container: starts LibreSprite headless on loopback, relays
 // newline-delimited JSON-RPC from stdin to http://127.0.0.1:<port>/mcp and the
-// replies back to stdout, and adds two helper tools (sprite_new, export_sheet).
+// replies back to stdout, and adds helper tools (sprite_new, pixels_set, export_sheet).
 // Bun only, no dependencies. Everything not JSON-RPC goes to stderr.
 import { deflateSync } from "node:zlib";
 import { mkdirSync, existsSync, readFileSync } from "node:fs";
@@ -12,6 +12,8 @@ const SCRIPT = join(dirname(BIN), "data/scripts/mcp-server.js");
 const WORK = process.env.WORK_DIR || "/work";
 const SEED_DIR = "/tmp/libresprite-mcp";
 const TIMEOUT_MS = Number(process.env.LIBRESPRITE_TIMEOUT_MS) || 30000;
+const MAX_BATCH = 10000; // pixels per pixels_set call
+const CONCURRENCY = 8; // pixel_set requests in flight: httplib serves with >= 8 threads; more queue up and stall
 const log = (...a) => console.error("[bridge]", ...a);
 
 let child = null;
@@ -160,6 +162,56 @@ const HELPERS = {
       await Bun.write(seed, blankPng(w, h, colorMode));
       await start(seed);
       return text(`opened a blank ${w}x${h} ${colorMode} sprite (1 layer, 1 frame). Save it with sprite_save_as under /work.`);
+    },
+  },
+  pixels_set: {
+    description: `Sets many pixels in one call (each one is a pixel_set). Give either pixels, a list of {x, y, color}, or rows plus palette: rows is a list of strings drawn from (x, y) down, one character per pixel, palette maps each character to a color, and characters missing from palette (e.g. "." or " ") are left untouched. All coordinates are checked against the sprite before anything is drawn. At most ${MAX_BATCH} pixels per call. Colors are #RRGGBB or #RRGGBBAA; on indexed sprites they must be palette colors.`,
+    inputSchema: {
+      type: "object",
+      properties: {
+        pixels: { type: "array", items: { type: "object", properties: { x: { type: "integer" }, y: { type: "integer" }, color: { type: "string" } }, required: ["x", "y", "color"] } },
+        rows: { type: "array", items: { type: "string" }, description: "one string per row, one character per pixel" },
+        palette: { type: "object", additionalProperties: { type: "string" }, description: 'character -> color, e.g. {"#": "#000000", "o": "#ff8800"}' },
+        x: { type: "integer", description: "left column of rows (default 0)" },
+        y: { type: "integer", description: "top row of rows (default 0)" },
+        frame: { type: "integer", description: "0-based frame (default: the active frame)" },
+        layer: { type: "integer", description: "0-based layer (default: the active layer)" },
+      },
+    },
+    async run({ pixels, rows, palette = {}, x = 0, y = 0, frame, layer }) {
+      if (!pixels === !rows) throw new Error("give either pixels or rows (with palette)");
+      if (rows) {
+        if (!Array.isArray(rows) || !rows.every((r) => typeof r === "string")) throw new Error("rows must be a list of strings");
+        if (!Number.isInteger(x) || !Number.isInteger(y)) throw new Error("x and y must be integers");
+        pixels = [];
+        rows.forEach((row, dy) => [...row].forEach((ch, dx) => {
+          if (Object.hasOwn(palette, ch)) pixels.push({ x: x + dx, y: y + dy, color: palette[ch] });
+        }));
+      }
+      if (!Array.isArray(pixels)) throw new Error("pixels must be a list of {x, y, color}");
+      if (pixels.length > MAX_BATCH) throw new Error(`${pixels.length} pixels is more than the ${MAX_BATCH} allowed per call; split the batch`);
+      const { width, height } = JSON.parse((await callTool("sprite_info", {})).content[0].text);
+      for (const p of pixels) {
+        if (!Number.isInteger(p?.x) || !Number.isInteger(p?.y) || p.x < 0 || p.y < 0 || p.x >= width || p.y >= height)
+          throw new Error(`pixel ${JSON.stringify(p)} is out of bounds (sprite is ${width}x${height}); nothing was drawn`);
+        if (typeof p.color !== "string" || !/^#([0-9a-f]{6}|[0-9a-f]{8})$/i.test(p.color))
+          throw new Error(`pixel ${JSON.stringify(p)} needs a #RRGGBB or #RRGGBBAA color; nothing was drawn`);
+      }
+      const where = {};
+      if (frame !== undefined) where.frame = frame;
+      if (layer !== undefined) where.layer = layer;
+      // LibreSprite answers about one request per 10 ms pump tick, but handles every request queued
+      // by then in the same tick, so keep several in flight. Last write per pixel wins, as in order.
+      const last = [...new Map(pixels.map((p) => [p.x + "," + p.y, p])).values()];
+      let next = 0;
+      const worker = async () => {
+        while (next < last.length) {
+          const p = last[next++];
+          await callTool("pixel_set", { x: p.x, y: p.y, color: p.color, ...where });
+        }
+      };
+      await Promise.all(Array.from({ length: CONCURRENCY }, worker));
+      return text(`set ${pixels.length} pixels`);
     },
   },
   export_sheet: {

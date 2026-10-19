@@ -89,8 +89,9 @@ test("round trip: new sprite, pixels, frames, sprite sheet", async () => {
   expect(init.result.serverInfo.name).toBe("libresprite-mcp");
 
   const names = (await rpc("tools/list")).result.tools.map((t) => t.name);
-  expect(names.length).toBe(13);
+  expect(names.length).toBe(14);
   expect(names).toContain("sprite_new");
+  expect(names).toContain("pixels_set");
   expect(names).toContain("export_sheet");
 
   await call("sprite_new", { w: 16, h: 16 });
@@ -104,6 +105,21 @@ test("round trip: new sprite, pixels, frames, sprite sheet", async () => {
   await call("pixel_set", { x: 5, y: 5, color: "#00ff00", frame: 1 });
   await call("pixel_set", { x: 9, y: 9, color: "#0000ff", frame: 2 });
   expect((await call("pixel_get", { x: 5, y: 5, frame: 1 }))[0].text).toBe("#00ff00ff");
+
+  // batch: rows + palette (". " untouched), then a pixel list
+  await call("pixels_set", { rows: ["ab", ".a"], palette: { a: "#112233", b: "#445566" }, x: 12, y: 12, frame: 2 });
+  await call("pixels_set", { pixels: [{ x: 15, y: 0, color: "#000000" }, { x: 15, y: 0, color: "#778899" }], frame: 2 }); // last wins
+  const px = async (x, y) => (await call("pixel_get", { x, y, frame: 2 }))[0].text;
+  expect([await px(12, 12), await px(13, 12), await px(12, 13), await px(13, 13), await px(15, 0)])
+    .toEqual(["#112233ff", "#445566ff", "#00000000", "#112233ff", "#778899ff"]);
+  // out of bounds, bad colors and oversized batches are rejected before anything is drawn
+  for (const args of [
+    { pixels: [{ x: 0, y: 0, color: "#ffffff" }, { x: 16, y: 0, color: "#ffffff" }], frame: 2 },
+    { pixels: [{ x: 0, y: 0, color: "red" }], frame: 2 },
+    { pixels: Array.from({ length: 10001 }, () => ({ x: 0, y: 0, color: "#ffffff" })) },
+    { rows: ["a"], pixels: [] },
+  ]) expect((await rpc("tools/call", { name: "pixels_set", arguments: args })).result.isError).toBe(true);
+  expect(await px(0, 0)).toBe("#00000000");
 
   const content = await call("export_sheet", { path: "anim/hero.ase", inline: true });
   const paths = JSON.parse(content[0].text);

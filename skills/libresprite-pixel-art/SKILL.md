@@ -1,6 +1,6 @@
 ---
 name: libresprite-pixel-art
-description: Make, animate and export small pixel-art sprites with the LibreSprite MCP tools (sprite_new, pixel_set, run_command, export_sheet and friends). Use when the user asks for a sprite, icon, tile, mascot, pixel art, a walk/idle cycle, frames, a palette, or a sprite sheet, or mentions LibreSprite or Aseprite files (.ase).
+description: Make, animate and export small pixel-art sprites with the LibreSprite MCP tools (sprite_new, pixel_set, pixels_set, run_command, export_sheet and friends). Use when the user asks for a sprite, icon, tile, mascot, pixel art, a walk/idle cycle, frames, a palette, or a sprite sheet, or mentions LibreSprite or Aseprite files (.ase).
 ---
 
 # Pixel art with LibreSprite
@@ -18,6 +18,7 @@ under `/work`; the scratch sprite from `sprite_new` lives in `/tmp` and is lost.
 | What is open | `sprite_info`, `layers_list` |
 | Look at it | `sprite_image {frame?}` returns a PNG; use it after every pass |
 | Draw | `pixel_set {x, y, color, frame?, layer?}`, read back with `pixel_get` |
+| Draw many | `pixels_set {pixels: [{x, y, color}]}` or `{rows: ["..ab"], palette: {a: "#.."}, x?, y?}`, up to 10000 per call, all-or-nothing bounds check |
 | Palette | `palette_get`, `palette_set {index, color}` (cannot grow the palette) |
 | Frames, layers, flips, resize... | `command_info {name}` first, then `run_command {name, params}` |
 | Save | `sprite_save_as {path}` (.ase keeps frames and layers, .png flattens one frame) |
