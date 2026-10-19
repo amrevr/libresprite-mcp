@@ -1,5 +1,5 @@
 {
-  "name": "libresprite-mcp",
+  "name": "libresprite-plugin",
   "version": "0.1.0",
   "description": "Draw, animate and export pixel art with LibreSprite's built-in MCP server, run headless in Docker behind a stdio bridge.",
   "author": { "name": "Rijul Verma" },

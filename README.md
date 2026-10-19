@@ -1,4 +1,4 @@
-# libresprite-mcp
+# libresprite-plugin
 
 ![How one tool call travels: Claude Code, stdio JSON-RPC, a docker run --network none container holding bridge.js (Bun) and LibreSprite --batch with mcp-server.js, and the /work project mount](docs/architecture.gif)
 
@@ -18,15 +18,15 @@ loopback. No port is published and the container runs with `--network none`.
 ## Install
 
 You need **Docker**, running and usable by your user. Nothing else: the image is prebuilt for
-amd64 and arm64 at `ghcr.io/amrevr/libresprite-mcp`.
+amd64 and arm64 at `ghcr.io/amrevr/libresprite-plugin`.
 
 ```sh
-claude plugin marketplace add amrevr/libresprite-mcp
-claude plugin install libresprite-mcp@libresprite-mcp
+claude plugin marketplace add amrevr/libresprite-plugin
+claude plugin install libresprite-plugin@libresprite-plugin
 ```
 
-Inside a session, `/plugin marketplace add amrevr/libresprite-mcp` and
-`/plugin install libresprite-mcp@libresprite-mcp` do the same. Claude Code clones the
+Inside a session, `/plugin marketplace add amrevr/libresprite-plugin` and
+`/plugin install libresprite-plugin@libresprite-plugin` do the same. Claude Code clones the
 marketplace over SSH when you have a GitHub SSH key; without one, set
 `CLAUDE_CODE_PLUGIN_PREFER_HTTPS=1` first.
 
@@ -40,26 +40,27 @@ run Claude Code in, mounted at `/work`.
 Claude follows the bundled `libresprite-pixel-art` skill and writes `art/coin.ase`,
 `art/coin.png` (the sheet) and `art/coin.json`.
 
-**Update.** `claude plugin marketplace update libresprite-mcp`, then
-`claude plugin update libresprite-mcp@libresprite-mcp`. Each plugin version pins the image tag
+**Update.** `claude plugin marketplace update libresprite-plugin`, then
+`claude plugin update libresprite-plugin@libresprite-plugin`. Each plugin version pins the image tag
 of the same version, which Docker pulls on first use.
 
-**Uninstall.** `claude plugin uninstall libresprite-mcp@libresprite-mcp`, then
-`claude plugin marketplace remove libresprite-mcp`, and to free the disk space
-`docker image rm ghcr.io/amrevr/libresprite-mcp:0.1.0`.
+**Uninstall.** `claude plugin uninstall libresprite-plugin@libresprite-plugin`, then
+`claude plugin marketplace remove libresprite-plugin`, and to free the disk space
+`docker image rm ghcr.io/amrevr/libresprite-plugin:0.1.0`.
 
 ### Build the image yourself
 
 ```sh
-git clone git@github.com:amrevr/libresprite-mcp.git   # or https://github.com/amrevr/libresprite-mcp.git
-cd libresprite-mcp
-docker build -t libresprite-mcp .
-./test/run.sh libresprite-mcp                         # the test suite, inside the image
-export LIBRESPRITE_MCP_IMAGE=libresprite-mcp          # then start claude: the plugin runs this image
+git clone git@github.com:amrevr/libresprite-plugin.git  # or https://github.com/amrevr/libresprite-plugin.git
+cd libresprite-plugin
+docker build -t libresprite-plugin .
+./test/run.sh libresprite-plugin                        # the test suite, inside the image
+export LIBRESPRITE_PLUGIN_IMAGE=libresprite-plugin      # then start claude: the plugin runs this image
 ```
 
-`.mcp.json` runs `${LIBRESPRITE_MCP_IMAGE:-ghcr.io/amrevr/libresprite-mcp:0.1.0}`. To try a
-checkout without installing it, run `claude --plugin-dir ./libresprite-mcp`.
+`.mcp.json` runs `${LIBRESPRITE_PLUGIN_IMAGE:-ghcr.io/amrevr/libresprite-plugin:0.1.0}`, so setting
+`LIBRESPRITE_PLUGIN_IMAGE` before starting Claude Code swaps in any other image. To try a
+checkout without installing it, run `claude --plugin-dir ./libresprite-plugin`.
 
 The build compiles LibreSprite at commit `2be695f986ee210cb6bd0c210093b6f08686717f`
 (`--build-arg LIBRESPRITE_COMMIT=<full sha>` picks another) on Debian trixie, with CMake 4.4.3
@@ -131,15 +132,17 @@ the MIT licence; see `LICENSE`.
 
 LibreSprite is GPL-2.0-only. The published image contains the LibreSprite binary built from
 the commit pinned in the `Dockerfile` (also recorded in the image label
-`io.github.amrevr.libresprite-mcp.libresprite-commit`). **The complete corresponding source**
+`io.github.amrevr.libresprite-plugin.libresprite-commit`). **The complete corresponding source**
 of that commit, submodules included, is attached to every
-[release](https://github.com/amrevr/libresprite-mcp/releases) as
+[release](https://github.com/amrevr/libresprite-plugin/releases) as
 `libresprite-<commit>-source.tar.gz`. The bridge runs LibreSprite as a separate process and
 talks to it over HTTP and the command line, without linking it.
 
 Maintainers cut a release by tagging the merged commit with the version in
-`.claude-plugin/plugin.json`: `git tag v0.1.0 && git push git@github.com:amrevr/libresprite-mcp.git v0.1.0`.
+`.claude-plugin/plugin.json`: `git tag v0.1.0 && git push git@github.com:amrevr/libresprite-plugin.git v0.1.0`.
 CI then publishes the `0.1.0` and `0.1` image tags and the release workflow attaches the source.
+A newly created GHCR package is private: make it public once, under
+[package settings](https://github.com/users/amrevr/packages/container/libresprite-plugin/settings).
 
 ## Credits
 

@@ -10,7 +10,7 @@ import { basename, dirname, extname, isAbsolute, join, normalize } from "node:pa
 const BIN = process.env.LIBRESPRITE_BIN || "/opt/libresprite/libresprite";
 const SCRIPT = join(dirname(BIN), "data/scripts/mcp-server.js");
 const WORK = process.env.WORK_DIR || "/work";
-const SEED_DIR = "/tmp/libresprite-mcp";
+const SEED_DIR = "/tmp/libresprite-plugin";
 const TIMEOUT_MS = Number(process.env.LIBRESPRITE_TIMEOUT_MS) || 30000;
 const MAX_BATCH = 10000; // pixels per pixels_set call
 const CONCURRENCY = 8; // pixel_set requests in flight: httplib serves with >= 8 threads; more queue up and stall

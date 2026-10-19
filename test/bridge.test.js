@@ -86,6 +86,7 @@ function decodePng(bytes) {
 test("round trip: new sprite, pixels, frames, sprite sheet", async () => {
   const { proc, rpc, call } = startBridge();
   const init = await rpc("initialize", { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "test", version: "0" } });
+  // LibreSprite's own MCP server names itself this (data/scripts/mcp-server.js), not this repo.
   expect(init.result.serverInfo.name).toBe("libresprite-mcp");
 
   const names = (await rpc("tools/list")).result.tools.map((t) => t.name);

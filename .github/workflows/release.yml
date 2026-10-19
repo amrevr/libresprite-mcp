@@ -35,5 +35,5 @@ jobs:
           TAG: ${{ github.ref_name }}
         run: |
           gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --verify-tag --title "$TAG" --notes \
-            "Image: \`ghcr.io/amrevr/libresprite-mcp:${TAG#v}\`. It contains LibreSprite (GPL-2.0-only) built from commit \`$COMMIT\`; the complete corresponding source is attached as \`libresprite-$COMMIT-source.tar.gz\`."
+            "Image: \`ghcr.io/amrevr/libresprite-plugin:${TAG#v}\`. It contains LibreSprite (GPL-2.0-only) built from commit \`$COMMIT\`; the complete corresponding source is attached as \`libresprite-$COMMIT-source.tar.gz\`."
           gh release upload "$TAG" --clobber "libresprite-$COMMIT-source.tar.gz" "libresprite-$COMMIT-source.tar.gz.sha256"

@@ -1,5 +1,5 @@
 # LibreSprite (GPL-2.0) built from source, run headless behind a stdio MCP bridge.
-# Build: docker build -t libresprite-mcp .
+# Build: docker build -t libresprite-plugin .
 ARG BUN_VERSION=1.4.3
 # The release workflow reads this line to attach the matching source tarball (GPL-2.0).
 ARG LIBRESPRITE_COMMIT=2be695f986ee210cb6bd0c210093b6f08686717f
@@ -25,10 +25,10 @@ FROM oven/bun:${BUN_VERSION} AS bun
 
 FROM debian:trixie-slim
 ARG LIBRESPRITE_COMMIT
-LABEL org.opencontainers.image.source="https://github.com/amrevr/libresprite-mcp" \
+LABEL org.opencontainers.image.source="https://github.com/amrevr/libresprite-plugin" \
       org.opencontainers.image.licenses="MIT AND GPL-2.0-only" \
       org.opencontainers.image.description="LibreSprite's built-in MCP server, headless, behind a stdio bridge" \
-      io.github.amrevr.libresprite-mcp.libresprite-commit="${LIBRESPRITE_COMMIT}"
+      io.github.amrevr.libresprite-plugin.libresprite-commit="${LIBRESPRITE_COMMIT}"
 ENV DEBIAN_FRONTEND=noninteractive
 # The binary's direct shared-library dependencies (readelf NEEDED), mapped to trixie packages.
 RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends \

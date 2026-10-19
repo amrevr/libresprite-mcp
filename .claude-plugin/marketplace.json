@@ -1,10 +1,10 @@
 {
-  "name": "libresprite-mcp",
+  "name": "libresprite-plugin",
   "description": "LibreSprite pixel-art plugin for Claude Code",
   "owner": { "name": "Rijul Verma" },
   "plugins": [
     {
-      "name": "libresprite-mcp",
+      "name": "libresprite-plugin",
       "source": "./",
       "description": "Pixel art through LibreSprite's built-in MCP server, headless in Docker"
     }

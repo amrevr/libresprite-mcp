@@ -5,7 +5,7 @@
       "args": [
         "run", "--rm", "-i", "--pull=missing", "--network", "none",
         "-v", "${CLAUDE_PROJECT_DIR}:/work",
-        "${LIBRESPRITE_MCP_IMAGE:-ghcr.io/amrevr/libresprite-mcp:0.1.0}"
+        "${LIBRESPRITE_PLUGIN_IMAGE:-ghcr.io/amrevr/libresprite-plugin:0.1.0}"
       ]
     }
   }
